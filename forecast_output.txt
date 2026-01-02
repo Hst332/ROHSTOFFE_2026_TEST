@@ -1,14 +1,14 @@
 ===================================
    MARKET FORECAST – DAILY UPDATE
 ===================================
-Run time (UTC): 2026-01-02 19:59:33 UTC
+Run time (UTC): 2026-01-02 20:15:04 UTC
 
 --------- NATURAL GAS ---------
 Data date : 2026-01-02
-Close     : 3.63
+Close     : 3.64
 Model CV  : 50.44% ± 1.67%
-Prob UP   : 53.68%
-Prob DOWN : 46.32%
+Prob UP   : 53.64%
+Prob DOWN : 46.36%
 Signal    : NO_TRADE
 
 --------- OIL (BRENT/WTI) ---------
@@ -20,7 +20,7 @@ Signal    : NO_TRADE
 
 --------- GOLD ---------
 Data date : 2026-01-02
-Close     : 4330.90
+Close     : 4328.90
 Model CV  : 0.00% ± 0.00%
 Prob UP   : 50.00%
 Prob DOWN : 50.00%
@@ -28,7 +28,7 @@ Signal    : NO_TRADE
 
 --------- SILVER ---------
 Data date : 2026-01-02
-Close     : 71.73
+Close     : 71.54
 Model CV  : 0.00% ± 0.00%
 Prob UP   : 50.00%
 Prob DOWN : 50.00%
@@ -44,7 +44,7 @@ Signal    : NO_TRADE
 
 --------- SP500 ---------
 Data date : 2026-01-02
-Close     : 6856.86
+Close     : 6858.44
 Model CV  : 0.00% ± 0.00%
 Prob UP   : 50.00%
 Prob DOWN : 50.00%
