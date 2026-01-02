@@ -86,7 +86,7 @@ def write_output_txt(results, filepath="MARKET_FORECAST_DAILY.txt"):
 
 if __name__ == "__main__":
     results = [
-        build_result("NATURAL GAS", "2026-01-02", 3.63, 0.5368, 0.5044, 0.0167),
+        build_result("NATURAL GAS Handen bei +/-7%", "2026-01-02", 3.63, 0.5368, 0.5044, 0.0167),
         build_result("OIL (BRENT/WTI)", "2026-01-02", 60.72, 0.4700),
         build_result("GOLD", "2026-01-02", 4330.90, 0.50),
         build_result("SILVER", "2026-01-02", 71.73, 0.50),
