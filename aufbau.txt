@@ -1,0 +1,11 @@
+ROHSTOFFE2026/
+├── src/
+│   ├── forecast_energy.py      # Gas + Öl + neue Assets
+│   └── utils.py                # Helper Funktionen
+├── data/
+│   └── eia_storage.csv
+├── output/
+├── .github/
+│   └── workflows/
+│       └── main.yml
+└── requirements.txt
