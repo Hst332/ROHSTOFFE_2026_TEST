@@ -1,73 +1,98 @@
-import pandas as pd
 import numpy as np
-from datetime import datetime
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import accuracy_score
+from datetime import datetime, timezone
 
-# =======================
-# TXT Output für mehrere Assets
-# =======================
-def write_output_txt(filename, results):
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write("===================================\n")
-        f.write("   ENERGY FORECAST – CODE A\n")
-        f.write("===================================\n")
-        f.write(f"Run time (UTC): {datetime.utcnow():%Y-%m-%d %H:%M:%S UTC}\n\n")
-        for asset in results:
-            f.write(f"--------- {asset['name']} ---------\n")
-            f.write(f"Data date : {asset['date']}\n")
-            if "cv_mean" in asset:
-                f.write(f"Model CV  : {asset['cv_mean']:.2%} ± {asset['cv_std']:.2%}\n")
-            if "close" in asset:
-                f.write(f"Close      : {asset['close']:.2f}\n")
-            if "spread" in asset:
-                f.write(f"Spread     : {asset['spread']:.2f}\n")
-            f.write(f"Prob UP   : {asset['prob_up']:.2%}\n")
-            f.write(f"Prob DOWN : {asset['prob_down']:.2%}\n")
-            f.write(f"Signal    : {asset['signal']}\n\n")
-        f.write("===================================\n")
+# --------------------------------------------------
+# Signal-Logik mit asset-spezifischen Trade-Schwellen
+# --------------------------------------------------
 
-# =======================
-# ML Feature Builder
-# =======================
-def build_trend_vol_features(df, price_col="Close", trend_windows=[5,20], vol_window=10):
-    df = df.copy()
-    df["ret"] = df[price_col].pct_change()
-    for w in trend_windows:
-        df[f"trend_{w}"] = df[price_col].pct_change(w)
-    df[f"vol_{vol_window}"] = df["ret"].rolling(vol_window).std()
-    df.dropna(inplace=True)
-    return df
-
-def train_ml_model(df, price_col="Close", up_threshold=0.57, down_threshold=0.43):
-    df = build_trend_vol_features(df, price_col=price_col)
-    df["Target"] = (df[price_col].shift(-1) > df[price_col]).astype(int)
-    features = [c for c in df.columns if "trend" in c or "vol" in c]
-    
-    X = df[features]
-    y = df["Target"]
-    
-    tscv = TimeSeriesSplit(n_splits=5)
-    acc = []
-    for tr, te in tscv.split(X):
-        m = LogisticRegression(max_iter=200)
-        m.fit(X.iloc[tr], y.iloc[tr])
-        acc.append(accuracy_score(y.iloc[te], m.predict(X.iloc[te])))
-    
-    model = LogisticRegression(max_iter=200)
-    model.fit(X, y)
-    
-    last = df.iloc[-1:]
-    prob_up = model.predict_proba(last[features])[0][1]
-    signal = "UP" if prob_up >= up_threshold else "DOWN" if prob_up <= down_threshold else "NO_TRADE"
-    
-    return {
-        "date": last.index[0].date().isoformat(),
-        "prob_up": prob_up,
-        "prob_down": 1.0 - prob_up,
-        "signal": signal,
-        "cv_mean": np.mean(acc),
-        "cv_std": np.std(acc),
-        "close": float(last[price_col])
+def build_signal(prob_up: float, asset: str):
+    thresholds = {
+        "NATURAL GAS": 0.56,
+        "OIL (BRENT/WTI)": 0.595
     }
+
+    trade_level = thresholds.get(asset, 1.0)  # Default: kein Trade
+
+    if prob_up >= trade_level:
+        return "TRADE_UP", trade_level
+    elif (1.0 - prob_up) >= trade_level:
+        return "TRADE_DOWN", trade_level
+    else:
+        return "NO_TRADE", trade_level
+
+
+# --------------------------------------------------
+# Einheitlicher Forecast-Result-Builder
+# --------------------------------------------------
+
+def build_result(asset, date, close, prob_up, cv_mean=0.0, cv_std=0.0):
+    signal, trade_level = build_signal(prob_up, asset)
+
+    return {
+        "asset": asset,
+        "date": date,
+        "close": float(close),
+        "prob_up": float(prob_up),
+        "prob_down": float(1.0 - prob_up),
+        "cv_mean": float(cv_mean),
+        "cv_std": float(cv_std),
+        "signal": signal,
+        "trade_level": trade_level
+    }
+
+
+# --------------------------------------------------
+# TXT Daily Report Writer (FINAL)
+# --------------------------------------------------
+
+def write_output_txt(results, filepath="MARKET_FORECAST_DAILY.txt"):
+    runtime = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("===================================\n")
+        f.write("   MARKET FORECAST – DAILY UPDATE\n")
+        f.write("===================================\n")
+        f.write(f"Run time (UTC): {runtime}\n\n")
+
+        for r in results:
+            f.write(f"--------- {r['asset']} ---------\n")
+            f.write(f"Data date : {r['date']}\n")
+            f.write(f"Close     : {r['close']:.2f}\n")
+
+            if r["cv_mean"] > 0:
+                f.write(
+                    f"Model CV  : {r['cv_mean']*100:.2f}% ± {r['cv_std']*100:.2f}%\n"
+                )
+
+            f.write(f"Prob UP   : {r['prob_up']*100:.2f}%\n")
+            f.write(f"Prob DOWN : {r['prob_down']*100:.2f}%\n")
+
+            if r["signal"] == "NO_TRADE" and r["trade_level"] < 1:
+                f.write(
+                    f"Signal    : NO_TRADE      (Trade erst bei >= {r['trade_level']*100:.1f}%)\n"
+                )
+            else:
+                f.write(f"Signal    : {r['signal']}\n")
+
+            f.write("\n")
+
+        f.write("===================================\n")
+
+
+# --------------------------------------------------
+# Beispiel: tägliche Ergebnis-Erzeugung
+# (wird normalerweise aus deinen Modellen gespeist)
+# --------------------------------------------------
+
+if __name__ == "__main__":
+    results = [
+        build_result("NATURAL GAS", "2026-01-02", 3.63, 0.5368, 0.5044, 0.0167),
+        build_result("OIL (BRENT/WTI)", "2026-01-02", 60.72, 0.4700),
+        build_result("GOLD", "2026-01-02", 4330.90, 0.50),
+        build_result("SILVER", "2026-01-02", 71.73, 0.50),
+        build_result("COPPER", "2026-01-02", 5.69, 0.50),
+        build_result("SP500", "2026-01-02", 6856.86, 0.50),
+        build_result("DAX", "2026-01-02", 24539.34, 0.50)
+    ]
+
+    write_output_txt(results)
